@@ -64,8 +64,9 @@ func addHTTPVarsToReplacer(repl *caddy.Replacer, req *http.Request, w http.Respo
 			// query string parameters
 			if strings.HasPrefix(key, reqURIQueryReplPrefix) {
 				vals := req.URL.Query()[key[len(reqURIQueryReplPrefix):]]
-				// always return true, since the query param might
-				// be present only in some requests
+				if len(vals) == 0 {
+					return "", false
+				}
 				return strings.Join(vals, ","), true
 			}
 
@@ -73,8 +74,9 @@ func addHTTPVarsToReplacer(repl *caddy.Replacer, req *http.Request, w http.Respo
 			if strings.HasPrefix(key, reqHeaderReplPrefix) {
 				field := key[len(reqHeaderReplPrefix):]
 				vals := req.Header[textproto.CanonicalMIMEHeaderKey(field)]
-				// always return true, since the header field might
-				// be present only in some requests
+				if len(vals) == 0 {
+					return "", false
+				}
 				return strings.Join(vals, ","), true
 			}
 
@@ -83,11 +85,10 @@ func addHTTPVarsToReplacer(repl *caddy.Replacer, req *http.Request, w http.Respo
 				name := key[len(reqCookieReplPrefix):]
 				for _, cookie := range req.Cookies() {
 					if strings.EqualFold(name, cookie.Name) {
-						// always return true, since the cookie might
-						// be present only in some requests
 						return cookie.Value, true
 					}
 				}
+				return "", false
 			}
 
 			// http.request.tls.*
