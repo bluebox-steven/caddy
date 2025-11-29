@@ -99,9 +99,9 @@ func (r *Replacer) Set(variable string, value any) {
 // the value and whether the variable was known.
 func (r *Replacer) Get(variable string) (any, bool) {
 	for _, mapFunc := range r.providers {
-		Log().Info("Trying to replace with provider", zap.Any("provider", mapFunc), zap.String("variable", variable))
+		Log().Info("Trying to replace variable with provider", zap.String("provider", fmt.Sprintf("%T", mapFunc)), zap.String("variable", variable))
 		if val, ok := mapFunc.replace(variable); ok {
-			Log().Info("Replacement found", zap.Any("value", val))
+			Log().Info("Replacement found with provider", zap.String("provider", fmt.Sprintf("%T", mapFunc)), zap.Any("value", val))
 			return val, true
 		}
 	}
