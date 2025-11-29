@@ -21,6 +21,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"reflect"
 	"runtime"
 	"strconv"
 	"strings"
@@ -99,9 +100,42 @@ func (r *Replacer) Set(variable string, value any) {
 // the value and whether the variable was known.
 func (r *Replacer) Get(variable string) (any, bool) {
 	for _, mapFunc := range r.providers {
-		Log().Info("Trying to replace variable with provider", zap.String("provider", fmt.Sprintf("%T", mapFunc)), zap.String("variable", variable))
+		providerType := fmt.Sprintf("%T", mapFunc)
+
+		// build basic log fields
+		logFields := []zap.Field{
+			zap.String("provider", providerType),
+			zap.String("variable", variable),
+		}
+
+		// If provider is a ReplacerFunc, try to extract function name + pointer for clearer logs
+		if rf, ok := mapFunc.(ReplacerFunc); ok {
+			ptr := reflect.ValueOf(rf).Pointer()
+			if fn := runtime.FuncForPC(ptr); fn != nil {
+				logFields = append(logFields, zap.String("provider_func", fn.Name()), zap.String("provider_ptr", fmt.Sprintf("%#x", ptr)))
+			} else {
+				logFields = append(logFields, zap.String("provider_ptr", fmt.Sprintf("%#x", ptr)))
+			}
+		}
+
+		Log().Info("Trying to replace variable with provider", logFields...)
+
 		if val, ok := mapFunc.replace(variable); ok {
-			Log().Info("Replacement found with provider", zap.String("provider", fmt.Sprintf("%T", mapFunc)), zap.Any("value", val))
+			// include the value and (if applicable) provider func in the success log
+			successFields := []zap.Field{
+				zap.String("provider", providerType),
+				zap.String("variable", variable),
+				zap.Any("value", val),
+			}
+			if rf, ok := mapFunc.(ReplacerFunc); ok {
+				ptr := reflect.ValueOf(rf).Pointer()
+				if fn := runtime.FuncForPC(ptr); fn != nil {
+					successFields = append(successFields, zap.String("provider_func", fn.Name()), zap.String("provider_ptr", fmt.Sprintf("%#x", ptr)))
+				} else {
+					successFields = append(successFields, zap.String("provider_ptr", fmt.Sprintf("%#x", ptr)))
+				}
+			}
+			Log().Info("Replacement found with provider", successFields...)
 			return val, true
 		}
 	}
