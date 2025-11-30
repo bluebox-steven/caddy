@@ -353,8 +353,9 @@ func addHTTPVarsToReplacer(repl *caddy.Replacer, req *http.Request, w http.Respo
 			if strings.HasPrefix(key, varsReplPrefix) {
 				varName := key[len(varsReplPrefix):]
 				raw := GetVar(req.Context(), varName)
-				// variables can be dynamic, so always return true
-				// even when it may not be set; treat as empty then
+				if raw == nil {
+					return nil, false
+				}
 				return raw, true
 			}
 		}
@@ -364,8 +365,9 @@ func addHTTPVarsToReplacer(repl *caddy.Replacer, req *http.Request, w http.Respo
 			if strings.HasPrefix(key, respHeaderReplPrefix) {
 				field := key[len(respHeaderReplPrefix):]
 				vals := w.Header()[textproto.CanonicalMIMEHeaderKey(field)]
-				// always return true, since the header field might
-				// be present only in some responses
+				if len(vals) == 0 {
+					return "", false
+				}
 				return strings.Join(vals, ","), true
 			}
 		}

@@ -89,6 +89,31 @@ func (r *Replacer) Map(mapFunc ReplacerFunc) {
 	r.providers = append(r.providers, mapFunc)
 }
 
+// MapWithPriority inserts mapFunc into the providers slice at the given priority index.
+// Priority is treated as an index: 0 means execute first. Negative values insert at the front.
+// If priority is >= len(providers) the provider is appended at the end.
+// This allows callers to control the order in which providers are chained.
+func (r *Replacer) MapWithPriority(mapFunc ReplacerFunc, priority int) {
+	// fast path: append if priority is beyond current slice length
+	if priority >= len(r.providers) {
+		r.providers = append(r.providers, mapFunc)
+		return
+	}
+
+	// insert at front for negative priorities
+	if priority <= 0 {
+		r.providers = append([]replacementProvider{mapFunc}, r.providers...)
+		return
+	}
+
+	// general insert: build a new slice to avoid manual shifting
+	newProviders := make([]replacementProvider, 0, len(r.providers)+1)
+	newProviders = append(newProviders, r.providers[:priority]...)
+	newProviders = append(newProviders, mapFunc)
+	newProviders = append(newProviders, r.providers[priority:]...)
+	r.providers = newProviders
+}
+
 // Set sets a custom variable to a static value.
 func (r *Replacer) Set(variable string, value any) {
 	r.mapMutex.Lock()
